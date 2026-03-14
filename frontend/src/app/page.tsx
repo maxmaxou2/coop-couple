@@ -29,16 +29,23 @@ export default function Home() {
             className="w-full p-4 bg-white/10 border-2 border-white/20 rounded-2xl text-center text-xl outline-none focus:border-white transition-colors"
           />
         </div>
-        <button onClick={() => setRole("host")} className="w-full max-w-sm p-6 bg-white text-black font-black text-xl rounded-2xl">ÉCRAN PRINCIPAL</button>
+        <button onClick={() => setRole("host")} className="w-full max-w-sm p-6 bg-white text-black font-black text-xl rounded-2xl hover:scale-105 transition-transform">ÉCRAN PRINCIPAL</button>
         <div className="flex gap-4 w-full max-w-sm">
-          <button onClick={() => setRole("player1")} disabled={!name.trim()} className="flex-1 p-6 bg-blue-600 font-bold rounded-2xl disabled:opacity-30">P1</button>
-          <button onClick={() => setRole("player2")} disabled={!name.trim()} className="flex-1 p-6 bg-pink-600 font-bold rounded-2xl disabled:opacity-30">P2</button>
+          <button onClick={() => setRole("player1")} disabled={!name.trim()} className="flex-1 p-6 bg-blue-600 font-bold rounded-2xl disabled:opacity-30 hover:scale-105 transition-transform">Joueur 1</button>
+          <button onClick={() => setRole("player2")} disabled={!name.trim()} className="flex-1 p-6 bg-pink-600 font-bold rounded-2xl disabled:opacity-30 hover:scale-105 transition-transform">Joueur 2</button>
         </div>
       </div>
     );
   }
 
-  if (!isConnected || !gameState) return null;
+  if (!isConnected || !gameState) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-950 text-white">
+        <p className="animate-pulse font-mono tracking-widest uppercase text-sm">Connexion en cours : {role === "host" ? "Écran Principal" : role}...</p>
+      </div>
+    );
+  }
+
   const isHost = role === "host";
 
   if (gameState.current_phase === "lobby") return <Lobby gameState={gameState} role={role} sendAction={sendAction} />;

@@ -56,7 +56,7 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
           <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
             <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Les Z'amours</p>
             <div className="flex items-center justify-between mb-3 gap-4">
-              <span className="text-lg font-black whitespace-nowrap">{zamoursCount} Q</span>
+              <span className="text-lg font-black whitespace-nowrap">{zamoursCount} Questions</span>
               <input 
                 type="range" min="5" max="30" step="1" 
                 value={zamoursCount} onChange={(e) => setZamoursCount(parseInt(e.target.value))}
@@ -65,16 +65,16 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
             </div>
             <button
               onClick={() => sendAction("start_zamours", { count: zamoursCount })}
-              className="w-full py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500"
+              className="w-full py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition-colors"
             >
-              LANCER
+              LANCER LE JEU
             </button>
           </div>
 
           <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
             <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Jauge Télépathique</p>
             <div className="flex items-center justify-between mb-3 gap-4">
-              <span className="text-lg font-black whitespace-nowrap">{telepathicCount} M</span>
+              <span className="text-lg font-black whitespace-nowrap">{telepathicCount} Manches</span>
               <input 
                 type="range" min="2" max="20" step="1" 
                 value={telepathicCount} onChange={(e) => setTelepathicCount(parseInt(e.target.value))}
@@ -83,9 +83,9 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
             </div>
             <button
               onClick={() => sendAction("start_telepathic", { count: telepathicCount })}
-              className="w-full py-3 bg-cyan-600 rounded-xl font-bold hover:bg-cyan-500"
+              className="w-full py-3 bg-cyan-600 rounded-xl font-bold hover:bg-cyan-500 transition-colors"
             >
-              LANCER
+              LANCER LE JEU
             </button>
           </div>
 
@@ -101,16 +101,16 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
             </div>
             <button
               onClick={() => sendAction("start_times_up", { count: timesUpCount })}
-              className="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-500"
+              className="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-500 transition-colors"
             >
-              LANCER
+              LANCER LE JEU
             </button>
           </div>
 
           <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
             <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Dessin à l'Aveugle</p>
             <div className="flex items-center justify-between mb-3 gap-4">
-              <span className="text-lg font-black whitespace-nowrap">{drawingCount} D</span>
+              <span className="text-lg font-black whitespace-nowrap">{drawingCount} Dessins</span>
               <input 
                 type="range" min="2" max="10" step="1" 
                 value={drawingCount} onChange={(e) => setDrawingCount(parseInt(e.target.value))}
@@ -119,9 +119,9 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
             </div>
             <button
               onClick={() => sendAction("start_blind_drawing", { count: drawingCount })}
-              className="w-full py-3 bg-zinc-700 rounded-xl font-bold hover:bg-zinc-600"
+              className="w-full py-3 bg-zinc-700 rounded-xl font-bold hover:bg-zinc-600 transition-colors"
             >
-              LANCER
+              LANCER LE JEU
             </button>
           </div>
         </div>
