@@ -8,6 +8,7 @@ import os
 import json
 import random
 import asyncio
+import time
 
 app = FastAPI()
 
@@ -26,6 +27,7 @@ class Phase(str, Enum):
     LOBBY = "lobby"
     ZAMOURS = "zamours"
     TELEPATHIC_GAUGE = "telepathic_gauge"
+    TIMES_UP = "times_up"
 
 class Player(BaseModel):
     id: str
@@ -42,6 +44,21 @@ class GameServer:
     def __init__(self):
         self.state = GameState()
         self.active_connections: Dict[str, WebSocket] = {}
+
+    async def generate_times_up_words(self, count: int):
+        prompt = f"Génère une liste de {count} mots ou expressions variées (objets, célébrités, actions, lieux) pour un jeu type Time's Up. Renvoie un objet JSON : {{\"words\": [\"...\", \"...\"]}}"
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
+            )
+            data = json.loads(response.choices[0].message.content)
+            if "words" in data and isinstance(data["words"], list):
+                return data["words"]
+            return list(data.values()) if isinstance(data, dict) else [str(data)]
+        except Exception:
+            return ["Pomme", "Tour Eiffel", "Courir", "Zinedine Zidane"] * (count // 4 + 1)
 
     async def generate_zamours_questions(self, count: int):
         prompt = f"Génère {count} questions personnelles pour un jeu de couple type Les Z'amours avec le placeholder '{{name}}'. Renvoie un objet JSON : {{\"questions\": [\"...\", \"...\"]}}"
@@ -117,7 +134,6 @@ class GameServer:
             count = payload.get("count", 10)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            
             questions = await self.generate_zamours_questions(count)
             self.state.current_phase = Phase.ZAMOURS
             self.state.game_data = {
@@ -157,7 +173,6 @@ class GameServer:
             count = payload.get("count", 5)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            
             themes = await self.generate_telepathic_themes(count)
             self.state.current_phase = Phase.TELEPATHIC_GAUGE
             self.setup_gauge_round(0, themes)
@@ -175,6 +190,57 @@ class GameServer:
             themes = self.state.game_data.get("all_themes", [])
             if idx < len(themes):
                 self.setup_gauge_round(idx, themes)
+            else:
+                self.state.current_phase = Phase.LOBBY
+                self.state.game_data = {}
+
+        elif action == "start_times_up" and role == "host":
+            count = payload.get("count", 15)
+            self.state.game_data["loading"] = True
+            await self.broadcast_state()
+            words = await self.generate_times_up_words(count)
+            self.state.current_phase = Phase.TIMES_UP
+            self.state.game_data = {
+                "initial_words": words,
+                "current_words": list(words),
+                "round": 1,
+                "speaker_id": "player1",
+                "timer_end": 0,
+                "timer_running": False,
+                "loading": False,
+                "current_word": None
+            }
+            random.shuffle(self.state.game_data["current_words"])
+
+        elif action == "start_turn" and role == "host":
+            self.state.game_data["timer_end"] = int(time.time() * 1000) + 45000
+            self.state.game_data["timer_running"] = True
+            self.state.game_data["current_word"] = self.state.game_data["current_words"][0]
+            
+        elif action == "word_guessed" and role == self.state.game_data.get("speaker_id"):
+            words = self.state.game_data.get("current_words", [])
+            if words:
+                words.pop(0)
+                if not words:
+                    self.state.game_data["timer_running"] = False
+                    self.state.game_data["current_word"] = None
+                else:
+                    self.state.game_data["current_word"] = words[0]
+            
+        elif action == "end_turn" and role == "host":
+            self.state.game_data["timer_running"] = False
+            self.state.game_data["timer_end"] = 0
+            self.state.game_data["current_word"] = None
+            self.state.game_data["speaker_id"] = "player2" if self.state.game_data["speaker_id"] == "player1" else "player1"
+
+        elif action == "next_round" and role == "host":
+            current_round = self.state.game_data.get("round", 1)
+            if current_round < 3:
+                self.state.game_data["round"] = current_round + 1
+                self.state.game_data["current_words"] = list(self.state.game_data["initial_words"])
+                random.shuffle(self.state.game_data["current_words"])
+                self.state.game_data["current_word"] = None
+                self.state.game_data["timer_running"] = False
             else:
                 self.state.current_phase = Phase.LOBBY
                 self.state.game_data = {}

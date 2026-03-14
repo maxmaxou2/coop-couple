@@ -13,6 +13,7 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
   const players = Object.values(gameState.players);
   const [zamoursCount, setZamoursCount] = useState(10);
   const [telepathicCount, setTelepathicCount] = useState(5);
+  const [timesUpCount, setTimesUpCount] = useState(15);
 
   if (gameState.game_data.loading) {
     return (
@@ -50,38 +51,56 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
       </div>
 
       {isHost && players.length > 0 && (
-        <div className="flex flex-col gap-8 w-full max-w-sm">
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
-            <p className="text-xs font-bold mb-4 opacity-50 uppercase tracking-widest">Les Z'amours</p>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xl font-black">{zamoursCount} Questions</span>
+        <div className="flex flex-col gap-6 w-full max-w-sm">
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
+            <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Les Z'amours</p>
+            <div className="flex items-center justify-between mb-3 gap-4">
+              <span className="text-lg font-black whitespace-nowrap">{zamoursCount} Q</span>
               <input 
                 type="range" min="5" max="30" step="1" 
                 value={zamoursCount} onChange={(e) => setZamoursCount(parseInt(e.target.value))}
-                className="w-1/2 accent-blue-600"
+                className="w-full accent-blue-600"
               />
             </div>
             <button
               onClick={() => sendAction("start_zamours", { count: zamoursCount })}
-              className="w-full py-4 bg-blue-600 rounded-xl font-bold hover:bg-blue-500 transition-colors"
+              className="w-full py-3 bg-blue-600 rounded-xl font-bold hover:bg-blue-500"
             >
               LANCER
             </button>
           </div>
 
-          <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
-            <p className="text-xs font-bold mb-4 opacity-50 uppercase tracking-widest">Jauge Télépathique</p>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xl font-black">{telepathicCount} Manches</span>
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
+            <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Jauge Télépathique</p>
+            <div className="flex items-center justify-between mb-3 gap-4">
+              <span className="text-lg font-black whitespace-nowrap">{telepathicCount} M</span>
               <input 
                 type="range" min="2" max="20" step="1" 
                 value={telepathicCount} onChange={(e) => setTelepathicCount(parseInt(e.target.value))}
-                className="w-1/2 accent-cyan-600"
+                className="w-full accent-cyan-600"
               />
             </div>
             <button
               onClick={() => sendAction("start_telepathic", { count: telepathicCount })}
-              className="w-full py-4 bg-cyan-600 rounded-xl font-bold hover:bg-cyan-500 transition-colors"
+              className="w-full py-3 bg-cyan-600 rounded-xl font-bold hover:bg-cyan-500"
+            >
+              LANCER
+            </button>
+          </div>
+
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
+            <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Time's Up</p>
+            <div className="flex items-center justify-between mb-3 gap-4">
+              <span className="text-lg font-black whitespace-nowrap">{timesUpCount} Mots</span>
+              <input 
+                type="range" min="10" max="40" step="5" 
+                value={timesUpCount} onChange={(e) => setTimesUpCount(parseInt(e.target.value))}
+                className="w-full accent-orange-600"
+              />
+            </div>
+            <button
+              onClick={() => sendAction("start_times_up", { count: timesUpCount })}
+              className="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-500"
             >
               LANCER
             </button>
@@ -93,4 +112,4 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
   );
 };
 
-export const Game1 = () => null; // Obsolete
+export const Game1 = () => null;

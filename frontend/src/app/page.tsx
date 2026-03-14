@@ -4,6 +4,7 @@ import { useGameSocket } from "@/hooks/useGameSocket";
 import { Lobby } from "@/components/Phases";
 import { ZamoursHost, ZamoursPlayer } from "@/components/Zamours";
 import { TelepathicHost, TelepathicPlayer } from "@/components/TelepathicGauge";
+import { TimesUpHost, TimesUpPlayer } from "@/components/TimesUp";
 
 export default function Home() {
   const [role, setRole] = useState<string | null>(null);
@@ -59,6 +60,14 @@ export default function Home() {
       <TelepathicHost gameState={gameState} role={role} sendAction={sendAction} />
     ) : (
       <TelepathicPlayer gameState={gameState} role={role} sendAction={sendAction} />
+    );
+  }
+
+  if (gameState.current_phase === "times_up") {
+    return isHost ? (
+      <TimesUpHost gameState={gameState} role={role} sendAction={sendAction} />
+    ) : (
+      <TimesUpPlayer gameState={gameState} role={role} sendAction={sendAction} />
     );
   }
 
