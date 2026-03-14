@@ -21,7 +21,7 @@ app.add_middleware(
 )
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-MODEL_NAME = "gpt-5.2" # Modèle plus puissant pour la variété
+MODEL_NAME = "gpt-4o"
 
 class Phase(str, Enum):
     LOBBY = "lobby"
@@ -51,10 +51,11 @@ class GameServer:
             response = client.chat.completions.create(
                 model=MODEL_NAME,
                 messages=[
-                    {"role": "system", "content": "Tu es un assistant de jeu. Réponds toujours avec un objet JSON contenant une LISTE DE CHAINES DE CARACTERES (strings) uniquement. Pas d'objets imbriqués."},
+                    {"role": "system", "content": "Tu es un assistant de jeu créatif et imprévisible. Tes thèmes et mots doivent être originaux, sans trop être absurdes, et ne jamais se répéter. Réponds toujours avec un objet JSON contenant une LISTE DE CHAINES DE CARACTERES (strings) uniquement. Pas d'objets imbriqués."},
                     {"role": "user", "content": prompt}
                 ],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
+                temperature=1
             )
             data = json.loads(response.choices[0].message.content)
             raw_list = data.get(key, list(data.values())[0])
@@ -113,7 +114,7 @@ class GameServer:
             count = payload.get("count", 10)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            prompt = f"Génère {count} questions de couple originales et variées avec le placeholder '{{name}}' pour tester les connaissances de l'un sur le placeholder. JSON: {{\"questions\": []}}"
+            prompt = f"Génère {count} questions de couple insolites, drôles ou profondes dont les réponses sont courtes pour tester les connaissances de l'autre personne sur le placeholder '{{name}}'. Évite les questions trop longues. JSON: {{\"questions\": []}}"
             questions = await self.generate_ai_content(prompt, "questions")
             self.state.current_phase = Phase.ZAMOURS
             self.state.game_data = {
@@ -138,7 +139,7 @@ class GameServer:
             count = payload.get("count", 5)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            prompt = f"Génère {count} titres de thèmes originaux pour un jeu de couple : un dira quelque chose en rapport avec ce thème et qui doit correspondre à une note qu'il doit faire deviner à l'autre. JSON: {{\"themes\": []}}"
+            prompt = f"Génère {count} thèmes créatifs et clivants pour un jeu d'échelle (0 à 100). Ex: 'Probabilité que cet objet survive à une chute de 10m', 'Niveau de malaise lors d'un premier date'. JSON: {{\"themes\": []}}"
             themes = await self.generate_ai_content(prompt, "themes")
             self.state.current_phase = Phase.TELEPATHIC_GAUGE
             self.setup_gauge_round(0, themes)
@@ -154,7 +155,7 @@ class GameServer:
             count = payload.get("count", 15)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            prompt = f"Génère {count} mots/expressions pour Time's Up (célébrités, objets, films, actions). JSON: {{\"words\": []}}"
+            prompt = f"Génère {count} mots ou expressions très variés pour Time's Up. Mélange objets bizarres, célébrités oubliées, actions complexes et lieux insolites. JSON: {{\"words\": []}}"
             words = await self.generate_ai_content(prompt, "words")
             self.state.current_phase = Phase.TIMES_UP
             self.state.game_data = {
@@ -216,7 +217,7 @@ class GameServer:
             self.state.current_phase = Phase.LOBBY
             self.state.game_data = {}
 
-        elif action.startswith("next_"): # Unified next round handler
+        elif action.startswith("next_"):
             if self.state.current_phase == Phase.TELEPATHIC_GAUGE:
                 idx = self.state.game_data.get("round_index", 0) + 1
                 themes = self.state.game_data.get("all_themes", [])
