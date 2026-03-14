@@ -10,13 +10,40 @@ import { BlindDrawingHost, BlindDrawingPlayer } from "@/components/BlindDrawing"
 export default function Home() {
   const [role, setRole] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
   const { gameState, isConnected, sendAction } = useGameSocket(role || "");
 
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedRole = localStorage.getItem("coop_role");
+    const savedName = localStorage.getItem("coop_name");
+    if (savedRole) setRole(savedRole);
+    if (savedName) setName(savedName);
+    setIsInitialized(true);
+  }, []);
+
+  // Save to localStorage when values change
+  useEffect(() => {
+    if (isInitialized) {
+      if (role) localStorage.setItem("coop_role", role);
+      if (name) localStorage.setItem("coop_name", name);
+    }
+  }, [role, name, isInitialized]);
+
+  // Send name once connected as a player
   useEffect(() => {
     if (isConnected && role && role !== "host" && name) {
       sendAction("set_name", { name });
     }
   }, [isConnected, role, name, sendAction]);
+
+  const resetSession = () => {
+    localStorage.removeItem("coop_role");
+    localStorage.removeItem("coop_name");
+    window.location.reload();
+  };
+
+  if (!isInitialized) return null;
 
   if (!role) {
     return (
@@ -40,31 +67,43 @@ export default function Home() {
 
   if (!isConnected || !gameState) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-950 text-white">
-        <p className="animate-pulse font-mono tracking-widest uppercase text-sm">Connexion en cours : {role === "host" ? "Écran Principal" : role}...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-white gap-6">
+        <p className="animate-pulse font-mono tracking-widest uppercase text-sm">Connexion en cours : {role === "host" ? "Écran Principal" : name}...</p>
+        <button onClick={resetSession} className="text-xs opacity-30 underline uppercase tracking-widest">Changer de rôle / nom</button>
       </div>
     );
   }
 
   const isHost = role === "host";
 
-  if (gameState.current_phase === "lobby") return <Lobby gameState={gameState} role={role} sendAction={sendAction} />;
-  
-  if (gameState.current_phase === "zamours") {
-    return isHost ? <ZamoursHost gameState={gameState} role={role} sendAction={sendAction} /> : <ZamoursPlayer gameState={gameState} role={role} sendAction={sendAction} />;
-  }
+  return (
+    <div className="relative">
+      {!isHost && (
+        <button 
+          onClick={resetSession}
+          className="fixed bottom-4 right-4 z-50 p-2 bg-white/5 text-[10px] text-white/20 uppercase tracking-widest rounded-lg border border-white/5"
+        >
+          Reset
+        </button>
+      )}
+      
+      {gameState.current_phase === "lobby" && <Lobby gameState={gameState} role={role} sendAction={sendAction} />}
+      
+      {gameState.current_phase === "zamours" && (
+        isHost ? <ZamoursHost gameState={gameState} role={role} sendAction={sendAction} /> : <ZamoursPlayer gameState={gameState} role={role} sendAction={sendAction} />
+      )}
 
-  if (gameState.current_phase === "telepathic_gauge") {
-    return isHost ? <TelepathicHost gameState={gameState} role={role} sendAction={sendAction} /> : <TelepathicPlayer gameState={gameState} role={role} sendAction={sendAction} />;
-  }
+      {gameState.current_phase === "telepathic_gauge" && (
+        isHost ? <TelepathicHost gameState={gameState} role={role} sendAction={sendAction} /> : <TelepathicPlayer gameState={gameState} role={role} sendAction={sendAction} />
+      )}
 
-  if (gameState.current_phase === "times_up") {
-    return isHost ? <TimesUpHost gameState={gameState} role={role} sendAction={sendAction} /> : <TimesUpPlayer gameState={gameState} role={role} sendAction={sendAction} />;
-  }
+      {gameState.current_phase === "times_up" && (
+        isHost ? <TimesUpHost gameState={gameState} role={role} sendAction={sendAction} /> : <TimesUpPlayer gameState={gameState} role={role} sendAction={sendAction} />
+      )}
 
-  if (gameState.current_phase === "blind_drawing") {
-    return isHost ? <BlindDrawingHost gameState={gameState} role={role} sendAction={sendAction} /> : <BlindDrawingPlayer gameState={gameState} role={role} sendAction={sendAction} />;
-  }
-
-  return null;
+      {gameState.current_phase === "blind_drawing" && (
+        isHost ? <BlindDrawingHost gameState={gameState} role={role} sendAction={sendAction} /> : <BlindDrawingPlayer gameState={gameState} role={role} sendAction={sendAction} />
+      )}
+    </div>
+  );
 }

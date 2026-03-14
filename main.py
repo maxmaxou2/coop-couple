@@ -138,7 +138,7 @@ class GameServer:
             count = payload.get("count", 5)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            prompt = f"Génère {count} thèmes abstraits originaux pour une échelle de 0 à 100. JSON: {{\"themes\": []}}"
+            prompt = f"Génère {count} titres de thèmes originaux pour un jeu de couple : un dira quelque chose en rapport avec ce thème et qui doit correspondre à une note qu'il doit faire deviner à l'autre. JSON: {{\"themes\": []}}"
             themes = await self.generate_ai_content(prompt, "themes")
             self.state.current_phase = Phase.TELEPATHIC_GAUGE
             self.setup_gauge_round(0, themes)
