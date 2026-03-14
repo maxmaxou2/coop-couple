@@ -1,10 +1,13 @@
 from enum import Enum
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from openai import OpenAI
+import os
 import json
 import random
+import asyncio
 
 app = FastAPI()
 
@@ -16,32 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+MODEL_NAME = "gpt-4o-mini"
+
 class Phase(str, Enum):
     LOBBY = "lobby"
     ZAMOURS = "zamours"
-
-QUESTION_TEMPLATES = [
-    "Quel est le plat préféré de {name} ?",
-    "Quelle est la plus grande peur de {name} ?",
-    "Quel est le plus gros défaut de {name} ?",
-    "Quelle est la plus grande qualité de {name} ?",
-    "Quelle est la destination de rêve de {name} ?",
-    "Quel est le film préféré de {name} ?",
-    "Quelle est la chanson honteuse de {name} ?",
-    "Quel était le premier job de {name} ?",
-    "Quel est le talent caché de {name} ?",
-    "Quelle est la plus grosse bêtise d'enfance de {name} ?",
-    "Quel est l'animal de compagnie idéal pour {name} ?",
-    "Quel super-pouvoir {name} aimerait-il avoir ?",
-    "Quelle est la chose la plus agaçante chez {name} ?",
-    "Quel est le plus beau souvenir de {name} avec toi ?",
-    "Quel objet {name} emporterait sur une île déserte ?",
-    "Quel est l'acteur ou l'actrice préféré(e) de {name} ?",
-    "Quel sport {name} déteste-t-il pratiquer ?",
-    "Quelle est la série préférée de {name} en ce moment ?",
-    "Quel est le petit déjeuner idéal pour {name} ?",
-    "Quelle est la plus grande fierté de {name} ?"
-]
+    TELEPATHIC_GAUGE = "telepathic_gauge"
 
 class Player(BaseModel):
     id: str
@@ -58,6 +42,36 @@ class GameServer:
     def __init__(self):
         self.state = GameState()
         self.active_connections: Dict[str, WebSocket] = {}
+
+    async def generate_zamours_questions(self, count: int):
+        prompt = f"Génère {count} questions personnelles pour un jeu de couple type Les Z'amours avec le placeholder '{{name}}'. Renvoie un objet JSON : {{\"questions\": [\"...\", \"...\"]}}"
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
+            )
+            data = json.loads(response.choices[0].message.content)
+            if "questions" in data and isinstance(data["questions"], list):
+                return data["questions"]
+            return list(data.values()) if isinstance(data, dict) else [str(data)]
+        except Exception:
+            return ["Quel est le plat préféré de {name} ?"] * count
+
+    async def generate_telepathic_themes(self, count: int):
+        prompt = f"Génère {count} thèmes abstraits pour un jeu de jauge (échelle 0 à 100). Renvoie un objet JSON : {{\"themes\": [\"...\", \"...\"]}}"
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"}
+            )
+            data = json.loads(response.choices[0].message.content)
+            if "themes" in data and isinstance(data["themes"], list):
+                return data["themes"]
+            return list(data.values()) if isinstance(data, dict) else [str(data)]
+        except Exception:
+            return ["Intensité", "Danger", "Prix"] * count
 
     async def connect(self, websocket: WebSocket, role: str):
         await websocket.accept()
@@ -82,9 +96,9 @@ class GameServer:
             except:
                 self.disconnect(role)
 
-    def get_structured_question(self, index: int):
-        template = QUESTION_TEMPLATES[index % len(QUESTION_TEMPLATES)]
-        p_key = "player1" if index < len(QUESTION_TEMPLATES)//2 else "player2"
+    def get_structured_question(self, index: int, questions: List[str]):
+        template = questions[index % len(questions)]
+        p_key = "player1" if index < (len(questions) // 2) else "player2"
         player = self.state.players.get(p_key)
         target_name = player.name if player else "???"
         return template.format(name=target_name)
@@ -99,14 +113,21 @@ class GameServer:
             if p_id in self.state.players:
                 self.state.players[p_id].score = max(0, self.state.players[p_id].score + delta)
 
-        elif action == "start_zamours":
+        elif action == "start_zamours" and role == "host":
+            count = payload.get("count", 10)
+            self.state.game_data["loading"] = True
+            await self.broadcast_state()
+            
+            questions = await self.generate_zamours_questions(count)
             self.state.current_phase = Phase.ZAMOURS
             self.state.game_data = {
                 "question_index": 0,
                 "answers": {},
                 "revealed": False,
-                "question": self.get_structured_question(0),
-                "total_questions": len(QUESTION_TEMPLATES)
+                "question": self.get_structured_question(0, questions),
+                "total_questions": len(questions),
+                "all_questions": questions,
+                "loading": False
             }
         
         elif action == "submit_answer":
@@ -118,19 +139,62 @@ class GameServer:
                 
         elif action == "next_question":
             idx = self.state.game_data.get("question_index", 0) + 1
-            if idx < len(QUESTION_TEMPLATES):
+            questions = self.state.game_data.get("all_questions", [])
+            if idx < len(questions):
                 self.state.game_data = {
                     "question_index": idx,
                     "answers": {},
                     "revealed": False,
-                    "question": self.get_structured_question(idx),
-                    "total_questions": len(QUESTION_TEMPLATES)
+                    "question": self.get_structured_question(idx, questions),
+                    "total_questions": len(questions),
+                    "all_questions": questions
                 }
+            else:
+                self.state.current_phase = Phase.LOBBY
+                self.state.game_data = {}
+
+        elif action == "start_telepathic" and role == "host":
+            count = payload.get("count", 5)
+            self.state.game_data["loading"] = True
+            await self.broadcast_state()
+            
+            themes = await self.generate_telepathic_themes(count)
+            self.state.current_phase = Phase.TELEPATHIC_GAUGE
+            self.setup_gauge_round(0, themes)
+            self.state.game_data["loading"] = False
+
+        elif action == "clue_given" and role == self.state.game_data.get("indicator_id"):
+            self.state.game_data["step"] = "waiting_guess"
+
+        elif action == "submit_guess" and role == self.state.game_data.get("guesser_id"):
+            self.state.game_data["guess"] = payload.get("guess")
+            self.state.game_data["step"] = "reveal"
+
+        elif action == "next_gauge_round" and role == "host":
+            idx = self.state.game_data.get("round_index", 0) + 1
+            themes = self.state.game_data.get("all_themes", [])
+            if idx < len(themes):
+                self.setup_gauge_round(idx, themes)
             else:
                 self.state.current_phase = Phase.LOBBY
                 self.state.game_data = {}
         
         await self.broadcast_state()
+
+    def setup_gauge_round(self, index: int, themes: List[str]):
+        indicator_id = "player1" if index % 2 == 0 else "player2"
+        guesser_id = "player2" if index % 2 == 0 else "player1"
+        self.state.game_data = {
+            "round_index": index,
+            "theme": themes[index % len(themes)],
+            "target": random.randint(5, 95),
+            "indicator_id": indicator_id,
+            "guesser_id": guesser_id,
+            "guess": None,
+            "step": "waiting_clue",
+            "all_themes": themes,
+            "total_rounds": len(themes)
+        }
 
 server = GameServer()
 
