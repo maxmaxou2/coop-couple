@@ -21,7 +21,7 @@ app.add_middleware(
 )
 
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-MODEL_NAME = "gpt-4o-mini"
+MODEL_NAME = "gpt-5.2" # Modèle plus puissant pour la variété
 
 class Phase(str, Enum):
     LOBBY = "lobby"
@@ -46,50 +46,28 @@ class GameServer:
         self.state = GameState()
         self.active_connections: Dict[str, WebSocket] = {}
 
-    async def generate_times_up_words(self, count: int):
-        prompt = f"Génère une liste de {count} mots ou expressions variées (objets, célébrités, actions, lieux) pour un jeu type Time's Up. Renvoie un objet JSON : {{\"words\": [\"...\", \"...\"]}}"
+    async def generate_ai_content(self, prompt: str, key: str):
         try:
             response = client.chat.completions.create(
                 model=MODEL_NAME,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": "Tu es un assistant de jeu. Réponds toujours avec un objet JSON contenant une LISTE DE CHAINES DE CARACTERES (strings) uniquement. Pas d'objets imbriqués."},
+                    {"role": "user", "content": prompt}
+                ],
                 response_format={"type": "json_object"}
             )
             data = json.loads(response.choices[0].message.content)
-            if "words" in data and isinstance(data["words"], list):
-                return data["words"]
-            return list(data.values()) if isinstance(data, dict) else [str(data)]
+            raw_list = data.get(key, list(data.values())[0])
+            
+            processed_list = []
+            for item in raw_list:
+                if isinstance(item, dict):
+                    processed_list.append(item.get("name", item.get("label", str(item))))
+                else:
+                    processed_list.append(str(item))
+            return processed_list
         except Exception:
-            return ["Pomme", "Tour Eiffel", "Courir", "Zinedine Zidane"] * (count // 4 + 1)
-
-    async def generate_zamours_questions(self, count: int):
-        prompt = f"Génère {count} questions personnelles pour un jeu de couple type Les Z'amours avec le placeholder '{{name}}'. Renvoie un objet JSON : {{\"questions\": [\"...\", \"...\"]}}"
-        try:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(response.choices[0].message.content)
-            if "questions" in data and isinstance(data["questions"], list):
-                return data["questions"]
-            return list(data.values()) if isinstance(data, dict) else [str(data)]
-        except Exception:
-            return ["Quel est le plat préféré de {name} ?"] * count
-
-    async def generate_telepathic_themes(self, count: int):
-        prompt = f"Génère {count} thèmes abstraits pour un jeu de jauge (échelle 0 à 100). Renvoie un objet JSON : {{\"themes\": [\"...\", \"...\"]}}"
-        try:
-            response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"}
-            )
-            data = json.loads(response.choices[0].message.content)
-            if "themes" in data and isinstance(data["themes"], list):
-                return data["themes"]
-            return list(data.values()) if isinstance(data, dict) else [str(data)]
-        except Exception:
-            return ["Intensité", "Danger", "Prix"] * count
+            return []
 
     async def connect(self, websocket: WebSocket, role: str):
         await websocket.accept()
@@ -114,9 +92,9 @@ class GameServer:
             except:
                 self.disconnect(role)
 
-    def get_structured_question(self, index: int, questions: List[str]):
+    def get_alternating_question(self, index: int, questions: List[str]):
         template = questions[index % len(questions)]
-        p_key = "player1" if index < (len(questions) // 2) else "player2"
+        p_key = "player1" if index % 2 == 0 else "player2"
         player = self.state.players.get(p_key)
         target_name = player.name if player else "???"
         return template.format(name=target_name)
@@ -135,37 +113,23 @@ class GameServer:
             count = payload.get("count", 10)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            questions = await self.generate_zamours_questions(count)
+            prompt = f"Génère {count} questions de couple originales et variées avec le placeholder '{{name}}' pour tester les connaissances de l'un sur le placeholder. JSON: {{\"questions\": []}}"
+            questions = await self.generate_ai_content(prompt, "questions")
             self.state.current_phase = Phase.ZAMOURS
             self.state.game_data = {
-                "question_index": 0,
-                "answers": {},
-                "revealed": False,
-                "question": self.get_structured_question(0, questions),
-                "total_questions": len(questions),
-                "all_questions": questions,
-                "loading": False
+                "question_index": 0, "answers": {}, "revealed": False,
+                "question": self.get_alternating_question(0, questions),
+                "total_questions": len(questions), "all_questions": questions, "loading": False
             }
-        
-        elif action == "submit_answer":
-            answers = self.state.game_data.get("answers", {})
-            answers[role] = payload.get("answer")
-            self.state.game_data["answers"] = answers
-            if "player1" in answers and "player2" in answers:
-                self.state.game_data["revealed"] = True
-                
+
         elif action == "next_question":
             idx = self.state.game_data.get("question_index", 0) + 1
             questions = self.state.game_data.get("all_questions", [])
             if idx < len(questions):
-                self.state.game_data = {
-                    "question_index": idx,
-                    "answers": {},
-                    "revealed": False,
-                    "question": self.get_structured_question(idx, questions),
-                    "total_questions": len(questions),
-                    "all_questions": questions
-                }
+                self.state.game_data.update({
+                    "question_index": idx, "answers": {}, "revealed": False,
+                    "question": self.get_alternating_question(idx, questions)
+                })
             else:
                 self.state.current_phase = Phase.LOBBY
                 self.state.game_data = {}
@@ -174,77 +138,60 @@ class GameServer:
             count = payload.get("count", 5)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            themes = await self.generate_telepathic_themes(count)
+            prompt = f"Génère {count} thèmes abstraits originaux pour une échelle de 0 à 100. JSON: {{\"themes\": []}}"
+            themes = await self.generate_ai_content(prompt, "themes")
             self.state.current_phase = Phase.TELEPATHIC_GAUGE
             self.setup_gauge_round(0, themes)
             self.state.game_data["loading"] = False
 
-        elif action == "clue_given" and role == self.state.game_data.get("indicator_id"):
-            self.state.game_data["step"] = "waiting_guess"
+        elif action == "update_guess" and role == self.state.game_data.get("guesser_id"):
+            self.state.game_data["guess"] = payload.get("guess")
 
         elif action == "submit_guess" and role == self.state.game_data.get("guesser_id"):
-            self.state.game_data["guess"] = payload.get("guess")
             self.state.game_data["step"] = "reveal"
-
-        elif action == "next_gauge_round" and role == "host":
-            idx = self.state.game_data.get("round_index", 0) + 1
-            themes = self.state.game_data.get("all_themes", [])
-            if idx < len(themes):
-                self.setup_gauge_round(idx, themes)
-            else:
-                self.state.current_phase = Phase.LOBBY
-                self.state.game_data = {}
 
         elif action == "start_times_up" and role == "host":
             count = payload.get("count", 15)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            words = await self.generate_times_up_words(count)
+            prompt = f"Génère {count} mots/expressions pour Time's Up (célébrités, objets, films, actions). JSON: {{\"words\": []}}"
+            words = await self.generate_ai_content(prompt, "words")
             self.state.current_phase = Phase.TIMES_UP
             self.state.game_data = {
-                "initial_words": words,
-                "current_words": list(words),
-                "round": 1,
-                "speaker_id": "player1",
-                "timer_end": 0,
-                "timer_running": False,
-                "loading": False,
-                "current_word": None
+                "initial_words": words, "current_words": list(words), "round": 1,
+                "speaker_id": "player1", "timer_end": 0, "timer_running": False,
+                "loading": False, "current_word": None
             }
             random.shuffle(self.state.game_data["current_words"])
 
         elif action == "start_turn" and role == "host":
             self.state.game_data["timer_end"] = int(time.time() * 1000) + 45000
             self.state.game_data["timer_running"] = True
+            random.shuffle(self.state.game_data["current_words"])
             self.state.game_data["current_word"] = self.state.game_data["current_words"][0]
-            
+
         elif action == "word_guessed" and role == self.state.game_data.get("speaker_id"):
+            if self.state.game_data.get("timer_running") and int(time.time() * 1000) < self.state.game_data["timer_end"]:
+                words = self.state.game_data.get("current_words", [])
+                if words:
+                    words.pop(0)
+                    if not words:
+                        self.state.game_data["timer_running"] = False
+                        self.state.game_data["current_word"] = None
+                    else:
+                        self.state.game_data["current_word"] = words[0]
+
+        elif action == "skip_word" and role == self.state.game_data.get("speaker_id"):
             words = self.state.game_data.get("current_words", [])
-            if words:
-                words.pop(0)
-                if not words:
-                    self.state.game_data["timer_running"] = False
-                    self.state.game_data["current_word"] = None
-                else:
-                    self.state.game_data["current_word"] = words[0]
-            
+            if len(words) > 1:
+                words.append(words.pop(0))
+                self.state.game_data["current_word"] = words[0]
+
         elif action == "end_turn" and role == "host":
             self.state.game_data["timer_running"] = False
-            self.state.game_data["timer_end"] = 0
             self.state.game_data["current_word"] = None
+            random.shuffle(self.state.game_data["current_words"])
             self.state.game_data["speaker_id"] = "player2" if self.state.game_data["speaker_id"] == "player1" else "player1"
-
-        elif action == "next_round" and role == "host":
-            current_round = self.state.game_data.get("round", 1)
-            if current_round < 3:
-                self.state.game_data["round"] = current_round + 1
-                self.state.game_data["current_words"] = list(self.state.game_data["initial_words"])
-                random.shuffle(self.state.game_data["current_words"])
-                self.state.game_data["current_word"] = None
-                self.state.game_data["timer_running"] = False
-            else:
-                self.state.current_phase = Phase.LOBBY
-                self.state.game_data = {}
 
         elif action == "start_blind_drawing" and role == "host":
             count = payload.get("count", 4)
@@ -255,44 +202,50 @@ class GameServer:
             self.state.game_data["drawing_base64"] = payload.get("drawing")
             self.state.game_data["step"] = "reveal"
 
-        elif action == "next_drawing_round" and role == "host":
-            idx = self.state.game_data.get("round_index", 0) + 1
-            total = self.state.game_data.get("total_rounds", 4)
-            if idx < total:
-                self.setup_drawing_round(idx, total)
-            else:
-                self.state.current_phase = Phase.LOBBY
-                self.state.game_data = {}
+        elif action == "submit_answer":
+            answers = self.state.game_data.get("answers", {})
+            answers[role] = payload.get("answer")
+            self.state.game_data["answers"] = answers
+            if "player1" in answers and "player2" in answers:
+                self.state.game_data["revealed"] = True
+
+        elif action == "clue_given":
+            self.state.game_data["step"] = "waiting_guess"
+        
+        elif action.startswith("next_"): # Unified next round handler
+            if self.state.current_phase == Phase.TELEPATHIC_GAUGE:
+                idx = self.state.game_data.get("round_index", 0) + 1
+                themes = self.state.game_data.get("all_themes", [])
+                if idx < len(themes): self.setup_gauge_round(idx, themes)
+                else: self.state.current_phase = Phase.LOBBY
+            elif self.state.current_phase == Phase.BLIND_DRAWING:
+                idx = self.state.game_data.get("round_index", 0) + 1
+                total = self.state.game_data.get("total_rounds", 4)
+                if idx < total: self.setup_drawing_round(idx, total)
+                else: self.state.current_phase = Phase.LOBBY
+            elif self.state.current_phase == Phase.TIMES_UP:
+                current_round = self.state.game_data.get("round", 1)
+                if current_round < 3:
+                    self.state.game_data.update({"round": current_round + 1, "current_words": list(self.state.game_data["initial_words"]), "current_word": None, "timer_running": False})
+                    random.shuffle(self.state.game_data["current_words"])
+                else: self.state.current_phase = Phase.LOBBY
         
         await self.broadcast_state()
 
-    def setup_drawing_round(self, index: int, total: int):
-        guide_id = "player1" if index % 2 == 0 else "player2"
-        drawer_id = "player2" if index % 2 == 0 else "player1"
-        seed = random.randint(1, 10000)
+    def setup_gauge_round(self, index: int, themes: List[str]):
         self.state.game_data = {
-            "round_index": index,
-            "total_rounds": total,
-            "target_image": f"https://picsum.photos/seed/{seed}/400/300",
-            "guide_id": guide_id,
-            "drawer_id": drawer_id,
-            "drawing_base64": None,
-            "step": "waiting_draw"
+            "round_index": index, "theme": themes[index % len(themes)], "target": random.randint(5, 95),
+            "indicator_id": "player1" if index % 2 == 0 else "player2",
+            "guesser_id": "player2" if index % 2 == 0 else "player1",
+            "guess": 50, "step": "waiting_clue", "all_themes": themes, "total_rounds": len(themes)
         }
 
-    def setup_gauge_round(self, index: int, themes: List[str]):
-        indicator_id = "player1" if index % 2 == 0 else "player2"
-        guesser_id = "player2" if index % 2 == 0 else "player1"
+    def setup_drawing_round(self, index: int, total: int):
         self.state.game_data = {
-            "round_index": index,
-            "theme": themes[index % len(themes)],
-            "target": random.randint(5, 95),
-            "indicator_id": indicator_id,
-            "guesser_id": guesser_id,
-            "guess": None,
-            "step": "waiting_clue",
-            "all_themes": themes,
-            "total_rounds": len(themes)
+            "round_index": index, "total_rounds": total, "target_image": f"https://picsum.photos/seed/{random.randint(1,9999)}/400/300",
+            "guide_id": "player1" if index % 2 == 0 else "player2",
+            "drawer_id": "player2" if index % 2 == 0 else "player1",
+            "drawing_base64": None, "step": "waiting_draw"
         }
 
 server = GameServer()
