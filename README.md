@@ -4,7 +4,7 @@ Un MVP de plateforme de jeux multijoueurs locaux (style Jackbox) conçu spécifi
 
 ## 🚀 Fonctionnalités
 
-### 🧠 Intelligence Artificielle (GPT-4o)
+### 🧠 Intelligence Artificielle (GPT-5.4)
 Le jeu intègre OpenAI pour générer du contenu dynamique et personnalisé à chaque session :
 - **Les Z'amours** : Génération de questions de couple personnalisées avec les prénoms des joueurs.
 - **Jauge Télépathique** : Création de thèmes abstraits et originaux pour tester votre connexion.
@@ -57,6 +57,6 @@ L'interface est accessible sur le port `3000`. Pour jouer sur mobile, connectez 
 - `frontend/src/components/` : Composants spécifiques à chaque mini-jeu.
 
 ## 🚧 Points d'amélioration
-- **Qualité des thèmes (Jauge)** : Les thèmes générés par l'IA sont parfois trop génériques ou peu inspirés. Le prompt doit être affiné pour encourager des concepts plus originaux, absurdes ou clivants.
-- **Variété du vocabulaire (Time's Up)** : Malgré l'utilisation de GPT-4o, certains mots ont tendance à revenir d'une session à l'autre. Il faudrait intégrer un système de "température" plus élevé ou un historique des mots déjà utilisés pour forcer la diversité.
+- **Qualité des thèmes (Jauge)** : Les thèmes générés par l'IA sont souvent un peu wtf.
+- **Variété du vocabulaire (Time's Up)** : Les mots du Time's Up sont parfois un peu trop durs.
 - **Design UI** : L'interface est fonctionnelle mais peut être enrichie avec plus d'animations et une identité visuelle propre à chaque jeu.
