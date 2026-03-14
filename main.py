@@ -139,7 +139,7 @@ class GameServer:
             count = payload.get("count", 5)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            prompt = f"Génère {count} thèmes créatifs et clivants pour un jeu d'échelle (0 à 100). Ex: 'Probabilité que cet objet survive à une chute de 10m', 'Niveau de malaise lors d'un premier date'. JSON: {{\"themes\": []}}"
+            prompt = f"Génère {count} thèmes créatifs et clivants mais très courts pour un jeu d'échelle (0 à 100). Ex: 'Musique parfaite pour un enterrement', 'Une action qui brûle la planète'. JSON: {{\"themes\": []}}"
             themes = await self.generate_ai_content(prompt, "themes")
             self.state.current_phase = Phase.TELEPATHIC_GAUGE
             self.setup_gauge_round(0, themes)
@@ -155,7 +155,7 @@ class GameServer:
             count = payload.get("count", 15)
             self.state.game_data["loading"] = True
             await self.broadcast_state()
-            prompt = f"Génère {count} mots ou expressions très variés pour Time's Up. Mélange objets bizarres, célébrités oubliées, actions complexes et lieux insolites. JSON: {{\"words\": []}}"
+            prompt = f"Génère {count} mots très variés pour Time's Up mais de la langue française courante. Un seul mot à faire deviner à chaque fois. Choisis des objets, célébrités, actions, lieux. JSON: {{\"words\": []}}"
             words = await self.generate_ai_content(prompt, "words")
             self.state.current_phase = Phase.TIMES_UP
             self.state.game_data = {
