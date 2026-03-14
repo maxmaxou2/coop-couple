@@ -17,13 +17,14 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
       <h1 className="text-4xl font-bold mb-8">Lobby</h1>
       <div className="mb-8">
         <h2 className="text-xl mb-4">Players Joined:</h2>
-        <ul className="space-y-2">
+        <ul className="space-y-4">
           {players.map((p) => (
-            <li key={p.id} className={`${p.connected ? "text-green-400" : "text-red-400"}`}>
-              {p.id} {p.connected ? "(Connected)" : "(Disconnected)"}
+            <li key={p.id} className={`text-2xl font-bold flex items-center justify-center gap-4 ${p.connected ? "text-white" : "text-red-500 opacity-50"}`}>
+              <div className={`w-4 h-4 rounded-full ${p.id === "player1" ? "bg-blue-500" : "bg-pink-500"}`} />
+              {p.name} {p.connected ? "" : "(Déconnecté)"}
             </li>
           ))}
-          {players.length === 0 && <p className="text-gray-500 italic">Waiting for players...</p>}
+          {players.length === 0 && <p className="text-gray-500 italic">En attente de joueurs...</p>}
         </ul>
       </div>
       {isHost && players.length > 0 && (
