@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-export type Phase = "lobby" | "zamours" | "telepathic_gauge" | "times_up";
+export type Phase = "lobby" | "zamours" | "telepathic_gauge" | "times_up" | "blind_drawing";
 
 export interface Player {
   id: string;

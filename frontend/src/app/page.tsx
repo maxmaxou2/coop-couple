@@ -5,6 +5,7 @@ import { Lobby } from "@/components/Phases";
 import { ZamoursHost, ZamoursPlayer } from "@/components/Zamours";
 import { TelepathicHost, TelepathicPlayer } from "@/components/TelepathicGauge";
 import { TimesUpHost, TimesUpPlayer } from "@/components/TimesUp";
+import { BlindDrawingHost, BlindDrawingPlayer } from "@/components/BlindDrawing";
 
 export default function Home() {
   const [role, setRole] = useState<string | null>(null);
@@ -20,12 +21,10 @@ export default function Home() {
   if (!role) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-8 bg-black text-white">
-        <h1 className="text-4xl font-black mb-8 italic">COOP COUPLE</h1>
+        <h1 className="text-4xl font-black mb-8 italic tracking-tighter uppercase">Coop Couple</h1>
         <div className="w-full max-w-sm mb-8 space-y-4">
           <input 
-            type="text" 
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            type="text" value={name} onChange={(e) => setName(e.target.value)}
             placeholder="Ton Prénom"
             className="w-full p-4 bg-white/10 border-2 border-white/20 rounded-2xl text-center text-xl outline-none focus:border-white transition-colors"
           />
@@ -40,35 +39,24 @@ export default function Home() {
   }
 
   if (!isConnected || !gameState) return null;
-
   const isHost = role === "host";
 
-  if (gameState.current_phase === "lobby") {
-    return <Lobby gameState={gameState} role={role} sendAction={sendAction} />;
-  }
-
+  if (gameState.current_phase === "lobby") return <Lobby gameState={gameState} role={role} sendAction={sendAction} />;
+  
   if (gameState.current_phase === "zamours") {
-    return isHost ? (
-      <ZamoursHost gameState={gameState} role={role} sendAction={sendAction} />
-    ) : (
-      <ZamoursPlayer gameState={gameState} role={role} sendAction={sendAction} />
-    );
+    return isHost ? <ZamoursHost gameState={gameState} role={role} sendAction={sendAction} /> : <ZamoursPlayer gameState={gameState} role={role} sendAction={sendAction} />;
   }
 
   if (gameState.current_phase === "telepathic_gauge") {
-    return isHost ? (
-      <TelepathicHost gameState={gameState} role={role} sendAction={sendAction} />
-    ) : (
-      <TelepathicPlayer gameState={gameState} role={role} sendAction={sendAction} />
-    );
+    return isHost ? <TelepathicHost gameState={gameState} role={role} sendAction={sendAction} /> : <TelepathicPlayer gameState={gameState} role={role} sendAction={sendAction} />;
   }
 
   if (gameState.current_phase === "times_up") {
-    return isHost ? (
-      <TimesUpHost gameState={gameState} role={role} sendAction={sendAction} />
-    ) : (
-      <TimesUpPlayer gameState={gameState} role={role} sendAction={sendAction} />
-    );
+    return isHost ? <TimesUpHost gameState={gameState} role={role} sendAction={sendAction} /> : <TimesUpPlayer gameState={gameState} role={role} sendAction={sendAction} />;
+  }
+
+  if (gameState.current_phase === "blind_drawing") {
+    return isHost ? <BlindDrawingHost gameState={gameState} role={role} sendAction={sendAction} /> : <BlindDrawingPlayer gameState={gameState} role={role} sendAction={sendAction} />;
   }
 
   return null;

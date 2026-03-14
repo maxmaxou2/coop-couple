@@ -28,6 +28,7 @@ class Phase(str, Enum):
     ZAMOURS = "zamours"
     TELEPATHIC_GAUGE = "telepathic_gauge"
     TIMES_UP = "times_up"
+    BLIND_DRAWING = "blind_drawing"
 
 class Player(BaseModel):
     id: str
@@ -244,8 +245,40 @@ class GameServer:
             else:
                 self.state.current_phase = Phase.LOBBY
                 self.state.game_data = {}
+
+        elif action == "start_blind_drawing" and role == "host":
+            count = payload.get("count", 4)
+            self.state.current_phase = Phase.BLIND_DRAWING
+            self.setup_drawing_round(0, count)
+
+        elif action == "submit_drawing" and role == self.state.game_data.get("drawer_id"):
+            self.state.game_data["drawing_base64"] = payload.get("drawing")
+            self.state.game_data["step"] = "reveal"
+
+        elif action == "next_drawing_round" and role == "host":
+            idx = self.state.game_data.get("round_index", 0) + 1
+            total = self.state.game_data.get("total_rounds", 4)
+            if idx < total:
+                self.setup_drawing_round(idx, total)
+            else:
+                self.state.current_phase = Phase.LOBBY
+                self.state.game_data = {}
         
         await self.broadcast_state()
+
+    def setup_drawing_round(self, index: int, total: int):
+        guide_id = "player1" if index % 2 == 0 else "player2"
+        drawer_id = "player2" if index % 2 == 0 else "player1"
+        seed = random.randint(1, 10000)
+        self.state.game_data = {
+            "round_index": index,
+            "total_rounds": total,
+            "target_image": f"https://picsum.photos/seed/{seed}/400/300",
+            "guide_id": guide_id,
+            "drawer_id": drawer_id,
+            "drawing_base64": None,
+            "step": "waiting_draw"
+        }
 
     def setup_gauge_round(self, index: int, themes: List[str]):
         indicator_id = "player1" if index % 2 == 0 else "player2"

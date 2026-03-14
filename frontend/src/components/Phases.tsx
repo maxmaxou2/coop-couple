@@ -14,6 +14,7 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
   const [zamoursCount, setZamoursCount] = useState(10);
   const [telepathicCount, setTelepathicCount] = useState(5);
   const [timesUpCount, setTimesUpCount] = useState(15);
+  const [drawingCount, setDrawingCount] = useState(4);
 
   if (gameState.game_data.loading) {
     return (
@@ -101,6 +102,24 @@ export const Lobby = ({ gameState, role, sendAction }: PhaseProps) => {
             <button
               onClick={() => sendAction("start_times_up", { count: timesUpCount })}
               className="w-full py-3 bg-orange-600 rounded-xl font-bold hover:bg-orange-500"
+            >
+              LANCER
+            </button>
+          </div>
+
+          <div className="bg-white/5 p-4 rounded-3xl border border-white/10">
+            <p className="text-xs font-bold mb-3 opacity-50 uppercase tracking-widest">Dessin à l'Aveugle</p>
+            <div className="flex items-center justify-between mb-3 gap-4">
+              <span className="text-lg font-black whitespace-nowrap">{drawingCount} D</span>
+              <input 
+                type="range" min="2" max="10" step="1" 
+                value={drawingCount} onChange={(e) => setDrawingCount(parseInt(e.target.value))}
+                className="w-full accent-zinc-500"
+              />
+            </div>
+            <button
+              onClick={() => sendAction("start_blind_drawing", { count: drawingCount })}
+              className="w-full py-3 bg-zinc-700 rounded-xl font-bold hover:bg-zinc-600"
             >
               LANCER
             </button>
