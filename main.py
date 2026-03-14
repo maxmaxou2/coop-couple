@@ -212,6 +212,10 @@ class GameServer:
         elif action == "clue_given":
             self.state.game_data["step"] = "waiting_guess"
         
+        elif action == "return_to_lobby" and role == "host":
+            self.state.current_phase = Phase.LOBBY
+            self.state.game_data = {}
+
         elif action.startswith("next_"): # Unified next round handler
             if self.state.current_phase == Phase.TELEPATHIC_GAUGE:
                 idx = self.state.game_data.get("round_index", 0) + 1
